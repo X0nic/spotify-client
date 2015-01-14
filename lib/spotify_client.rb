@@ -40,6 +40,50 @@ module Spotify
       run(:get, '/v1/me', [200])
     end
 
+    # Get all tracks in the users "Your Music" library
+    # Requires: user-library-read scope
+    def library
+      tracks = { 'items' => [] }
+      path = '/v1/me/tracks'
+
+      while path
+        response = run(:get, '/v1/me/tracks', [200])
+        tracks['items'].concat(response.delete('items'))
+        tracks.merge!(response)
+
+        path = if response['next']
+          response['next'].gsub(BASE_URI, '')
+        else
+          nil
+        end
+      end
+
+      tracks
+    end
+
+    # Checks if the tracks are already saved in the user's "Your Music" library
+    # Requires: user-library-read scope
+    #
+    # The returned array of booleans is in the same order in which the ids were specified
+    def library?(track_ids)
+      params = { ids: Array.wrap(track_ids).join(',') }
+      run(:get, '/v1/me/tracks/contains', [200], params)
+    end
+
+    # Add tracks to the user's "Your Music" library
+    # Requires: user-library-modify scope
+    def add_library_tracks(track_ids)
+      params = { ids: Array.wrap(track_ids)[0..99].join(',') }
+      run(:post, "/v1/me/tracks", [200], params, false)
+    end
+
+    # Removes tracks from the user's "Your Music" library
+    # Requires: user-library-modify scope
+    def remove_library_tracks(track_ids)
+      params = { ids: Array.wrap(track_ids)[0..99].join(',') }
+      run(:delete, "/v1/me/tracks", [200], JSON.dump(tracks: tracks))
+    end
+
     def user(user_id)
       run(:get, "/v1/users/#{user_id}", [200])
     end
