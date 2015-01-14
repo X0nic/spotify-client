@@ -47,7 +47,7 @@ module Spotify
       path = '/v1/me/tracks'
 
       while path
-        response = run(:get, '/v1/me/tracks', [200])
+        response = run(:get, path, [200])
         tracks['items'].concat(response.delete('items'))
         tracks.merge!(response)
 
