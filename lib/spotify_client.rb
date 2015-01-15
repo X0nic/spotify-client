@@ -1,3 +1,4 @@
+require 'base64'
 require 'excon'
 require 'json'
 
@@ -7,6 +8,7 @@ require File.dirname(__FILE__) + '/spotify/exceptions'
 module Spotify
   class Client
     BASE_URI = 'https://api.spotify.com'.freeze
+    TOKEN_URI = 'https://accounts.spotify.com'.freeze
 
     attr_accessor :access_token
 
@@ -34,6 +36,47 @@ module Spotify
     # Use when you employ persistent connections and are done with your requests.
     def close_connection
       @connection.reset
+    end
+
+    # Requests for a new access token
+    # It requires the refresh_token from the initial authorization
+    def self.new_access_token(client_id, client_secret, refresh_token)
+      connection = Excon.new(TOKEN_URI, persistent: false)
+      authorization = Base64.strict_encode64 "#{client_id}:#{client_secret}"
+      packet = {
+        idempotent: true,
+        expects: [200],
+        method: 'post',
+        path: '/api/token',
+        read_timeout: @read_timeout,
+        write_timeout: @write_timeout,
+        retry_limit: @retries,
+        headers: {
+          'Content-Type' => 'application/x-www-form-urlencoded',
+          'User-Agent'   => 'Spotify Ruby Client',
+          'Authorization' => "Basic #{authorization}"
+        },
+        body: "grant_type=refresh_token&refresh_token=#{refresh_token}"
+      }
+      response = connection.request(packet)
+      ::JSON.load(response.body)
+
+    rescue Excon::Errors::NotFound => exception
+      raise(ResourceNotFound, "Error: #{exception.message}")
+    rescue Excon::Errors::BadRequest => exception
+      raise(BadRequest, "Error: #{exception.message}")
+    rescue Excon::Errors::Forbidden => exception
+      raise(InsufficientClientScopeError, "Error: #{exception.message}")
+    rescue Excon::Errors::Unauthorized => exception
+      raise(AuthenticationError, "Error: #{exception.message}")
+    rescue Excon::Errors::Error => exception
+      # Catch all others errors. Samples:
+      #
+      # <Excon::Errors::SocketError: Connection refused - connect(2) (Errno::ECONNREFUSED)>
+      # <Excon::Errors::InternalServerError: Expected([200, 204, 404]) <=> Actual(500 InternalServerError)>
+      # <Excon::Errors::Timeout: read timeout reached>
+      # <Excon::Errors::BadGateway: Expected([200]) <=> Actual(502 Bad Gateway)>
+      raise(HTTPError, "Error: #{exception.message}")
     end
 
     def me
