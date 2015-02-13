@@ -229,7 +229,26 @@ module Spotify
 
     def artists(artist_ids)
       params = { ids: Array.wrap(artist_ids).join(',') }
-      run(:get, '/v1/tracks', [200], params)
+      run(:get, '/v1/artists', [200], params)
+    end
+
+    def artist_albums_full(artist_id)
+      albums = { 'items' => [] }
+      path = "/v1/artists/#{artist_id}/albums"
+
+      while path
+        response = run(:get, path, [200])
+        albums['items'].concat(response.delete('items'))
+        albums.merge!(response)
+
+        path = if response['next']
+          response['next'].gsub(BASE_URI, '')
+        else
+          nil
+        end
+      end
+
+      albums
     end
 
     def artist_albums(artist_id)
