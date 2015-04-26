@@ -132,7 +132,22 @@ module Spotify
     end
 
     def user_playlists(user_id)
-      run(:get, "/v1/users/#{user_id}/playlists", [200])
+      playlists = { 'items' => [] }
+      path = "/v1/users/#{user_id}/playlists"
+
+      while path
+        response = run(:get, path, [200])
+        playlists['items'].concat(response.delete('items'))
+        playlists.merge!(response)
+
+        path = if response['next']
+          response['next'].gsub(BASE_URI, '')
+        else
+          nil
+        end
+      end
+
+      playlists
     end
 
     def user_playlist(user_id, playlist_id)
