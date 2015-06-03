@@ -119,7 +119,7 @@ module Spotify
     # Requires: user-library-modify scope
     def add_library_tracks(track_ids)
       params = { ids: Array.wrap(track_ids)[0..99].join(',') }
-      run(:post, "/v1/me/tracks", [200], params, false)
+      run(:put, "/v1/me/tracks", [200], params, false)
     end
 
     # Removes tracks from the user's "Your Music" library
